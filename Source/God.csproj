@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <Description>Mods the final boss of Hollow Knight Silksong to be slightly more difficult.</Description>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <AssemblyName>com.github.JngoCreates.Silksong.God</AssemblyName>
+        <AssemblyTitle>God</AssemblyTitle>
+        <Version>0.1.0</Version>
+    </PropertyGroup>
+</Project>

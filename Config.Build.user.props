@@ -1,0 +1,19 @@
+<Project>
+    <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+        <!-- Set if the default steam game install directory doesn't work. -->
+        <!-- <GameRootDir></GameRootDir> -->
+        <!-- Set if your BepInEx/plugins/ directory isn't in the game files. -->
+        <PluginsDirPrefix Condition="'$([MSBuild]::IsOSUnixLike())' != 'true'">$([System.Environment]::GetFolderPath(SpecialFolder.ApplicationData))</PluginsDirPrefix>
+        <PluginsDirPrefix Condition="'$([MSBuild]::IsOSUnixLike())' == 'true'">$(HOME)/.config</PluginsDirPrefix>
+        <PluginsDir>$(PluginsDirPrefix)/r2modmanPlus-local/Silksong/profiles/Default/BepInEx/plugins</PluginsDir>
+    </PropertyGroup>
+
+    <Target Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'" Name="DeployFiles" AfterTargets="Build">
+        <Message Text="Deploy → $(PluginsDir)/$(TargetName)/$(AssemblyName).dll" Importance="High" />
+        <MakeDir Condition="!Exists('$(PluginsDir)/$(TargetName)')" Directories="$(PluginsDir)/$(TargetName)" />
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginsDir)/$(TargetName)" />
+        
+        <Exec Command="steam -applaunch 1030300 &#45;&#45;doorstop-enable true &#45;&#45;doorstop-target C:/Users/jngo/AppData/Roaming/r2modmanPlus-local/Silksong/profiles/Default/BepInEx/core/BepInEx.Preloader.dll" />
+    </Target>
+
+</Project>

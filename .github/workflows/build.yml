@@ -1,0 +1,35 @@
+name: Build Thunderstore artifact
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    branches: [ 'main' ]
+
+jobs:
+  build:
+    name: Build artifact
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      mod_name: ${{ steps.get_mod_name.outputs.mod_name }}
+      mod_version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8
+
+      - name: Package into Thunderstore artifact
+        run: |
+          dotnet tool install --global tcli
+          dotnet restore
+          dotnet build --configuration Release -target:PackTS --verbosity detailed
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Thunderstore
+          path: 'artifacts/thunderstore/*.zip'

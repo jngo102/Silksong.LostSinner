@@ -1,0 +1,105 @@
+name: Deploy
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch_meta:
+    name: Fetch meta properties
+    runs-on: ubuntu-latest
+    outputs:
+      name: ${{ steps.get_name.outputs.name }}
+      version: ${{ steps.get_version.outputs.version }}
+      description: ${{ steps.get_description.outputs.description }}
+      changelog: ${{ steps.get_changelog.outputs.body }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+    
+      - name: Get C# project file
+        id: get_project_file
+        run: echo "csproj=$(find . -iname *.csproj | head -1)" >> $GITHUB_OUTPUT
+
+      - name: Get mod name
+        id: get_name
+        run: |
+          tag=AssemblyTitle
+          mod_name=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
+          echo "name=$mod_name" >> $GITHUB_OUTPUT
+          
+      - name: Get mod description
+        id: get_description
+        run: |
+          tag=Description
+          description=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
+          echo "description=$description" >> $GITHUB_OUTPUT
+
+      - name: Get assembly version
+        id: get_version
+        run: |
+          tag=Version
+          version=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
+          echo "version=$version" >> $GITHUB_OUTPUT
+      
+      - name: Get changelog
+        id: get_changelog
+        run: |
+          query_regex="^## \[[0-9]*\.[0-9]*\.[0-9]*\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          cmd_output=$(grep --only-matching --perl-regexp "$query_regex" CHANGELOG.md)
+          echo "$(echo "$cmd_output" | head -2)" > temp.txt
+          start=$(cat temp.txt | head -1 | sed --expression 's/[]\/$*.^[]/\\&/g')
+          end=$(cat temp.txt | tail -1 | sed --expression 's/[]\/$*.^[]/\\&/g')
+          body=$(awk "/$start/,/$end/ { print }" CHANGELOG.md | head -n -1)
+          echo 'body<<EOF' >> $GITHUB_OUTPUT
+          echo "$body" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+  publish-release:
+    name: Publish GitHub release
+    needs: fetch_meta
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Thunderstore artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          github_token: ${{ secrets.ACCESS_TOKEN }}
+          workflow: build.yml
+          name: Thunderstore
+          path: thunderstore
+
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: 'thunderstore/*.zip'
+          name: ${{ needs.fetch_meta.outputs.name }}
+          body: ${{ needs.fetch_meta.outputs.changelog }} 
+          tag: ${{ needs.fetch_meta.outputs.version }}
+          prerelease: true
+#  publish-thunderstore:
+#    name: Publish Thunderstore release
+#    needs: fetch_meta
+#    permissions:
+#      contents: write
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Download Thunderstore artifact
+#        uses: dawidd6/action-download-artifact@v11
+#        with:
+#          github_token: ${{ secrets.ACCESS_TOKEN }}
+#          workflow: build.yml
+#          name: Thunderstore
+#          path: thunderstore
+#
+#      - name: Publish release
+#        uses: dhkatz/thunderstore-publish@v1
+#        id: publish
+#        with:
+#          token: ${{ secrets.THUNDERSTORE_TOKEN }}
+#          namespace: JngoCreates
+#          name: ${{ needs.fetch_meta.outputs.name }}
+#          description: ${{ needs.fetch_meta.outputs.description }}
+#          version: ${{ needs.fetch_meta.outputs.version }}
+#          path: 'thunderstore/*.zip'
+#          communities: Silksong
+#          categories: |
+#            mods

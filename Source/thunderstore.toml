@@ -1,0 +1,44 @@
+[config]
+schemaVersion = "0.0.1"
+
+[general]
+repository = "https://thunderstore.io"
+
+[package]
+namespace = "JngoCreates"
+name = "SilksongGod"
+description = "Mods the final boss of Silksong to be slightly more difficult."
+websiteUrl = "https://github.com/jngo102/Silksong.God"
+containsNsfwContent = false
+
+[package.dependencies]
+BepInEx = "5.4.23.3"
+
+[build]
+icon = "../Icon.png"
+readme = "../README.md"
+outdir = "../artifacts/thunderstore/"
+
+[[build.copy]]
+source = "../artifacts/bin/God/release/com.github.JngoCreates.Silksong.God.dll"
+target = "plugins/"
+
+[[build.copy]]
+source = "../CHANGELOG.md"
+target = "/"
+
+[[build.copy]]
+source = "../LICENSE.md"
+target = "/"
+
+# The following config options only apply when using TCLI to publish to Thunderstore directly:
+
+[publish]
+# See communities at:
+# https://thunderstore.io/api/experimental/community/
+communities = [ "silksong", ]
+
+[publish.categories]
+# See categories at:
+# https://thunderstore.io/api/experimental/community/peak/category/
+silksong = [ "mods", ]
