@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!-- 
+    Imports silksong path properties only if present in order to allow CI builds. The file should be gitignored.
+    If you are checking out from git and need to create a new one, you can use `dotnet new silksongpath` to generate one.
+    -->
+    <Import Condition="Exists('SilksongPath.props')" Project="SilksongPath.props"/>
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.1</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <RestoreAdditionalProjectSources>
+            https://nuget.bepinex.dev/v3/index.json
+        </RestoreAdditionalProjectSources>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!--These properties will control the generated PluginInfo. Version is also used by various parts of the build system.-->
+        <BepInExPluginGuid>LostSinner</BepInExPluginGuid>
+        <BepInExPluginName>LostSinner</BepInExPluginName>
+        <Version>0.1.0</Version>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all"/>
+        <PackageReference Include="BepInEx.Core" Version="5.*"/>
+        <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*"/>
+        <PackageReference Include="Silksong.GameLibs" Version="1.0.2-silksong1.0.28561"/>
+        <PackageReference Include="UnityEngine.Modules" Version="6000.0.50" IncludeAssets="compile"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <EmbeddedResource Include="Assets/*.png"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Binaries Include="$(TargetPath)"/>
+        <Binaries Include="$(TargetDir)/$(TargetName).pdb"/>
+    </ItemGroup>
+
+    <Target Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU' And '$(SilksongFolder)' != ''" Name="CopyAndLaunchGame" AfterTargets="Build">
+        <Copy SourceFiles="@(Binaries)" DestinationFolder="$(SilksongFolder)/BepInEx/plugins/$(TargetName)"/>
+
+        <Exec Command="steam -applaunch 1030300 --doorstop-enable true --doorstop-target C:/Users/jngo/AppData/Roaming/r2modmanPlus-local/Silksong/profiles/Default/BepInEx/core/BepInEx.Preloader.dll"/>
+    </Target>
+
+    <Target Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'" Name="PackageMod" AfterTargets="Build">
+        <PropertyGroup>
+            <ExportFolder>bin/Publish</ExportFolder>
+        </PropertyGroup>
+
+        <RemoveDir Directories="$(IntermediateOutputPath)/archive"/>
+        <MakeDir Directories="$(ExportFolder)"/>
+        <Copy SourceFiles="@(Binaries)" DestinationFolder="$(IntermediateOutputPath)/archive"/>
+        <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/archive" DestinationFile="$(ExportFolder)/$(TargetName).zip" Overwrite="True"/>
+    </Target>
+</Project>
