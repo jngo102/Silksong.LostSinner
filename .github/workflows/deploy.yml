@@ -9,7 +9,7 @@ jobs:
     outputs:
       name: ${{ steps.get_name.outputs.name }}
       version: ${{ steps.get_version.outputs.version }}
-      description: ${{ steps.get_description.outputs.description }}
+      # description: ${{ steps.get_description.outputs.description }}
       changelog: ${{ steps.get_changelog.outputs.body }}
     steps:
       - name: Checkout repository
@@ -22,16 +22,16 @@ jobs:
       - name: Get mod name
         id: get_name
         run: |
-          tag=AssemblyTitle
+          tag=BepInExPluginName
           mod_name=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
           echo "name=$mod_name" >> $GITHUB_OUTPUT
           
-      - name: Get mod description
-        id: get_description
-        run: |
-          tag=Description
-          description=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
-          echo "description=$description" >> $GITHUB_OUTPUT
+#      - name: Get mod description
+#        id: get_description
+#        run: |
+#          tag=Description
+#          description=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
+#          echo "description=$description" >> $GITHUB_OUTPUT
 
       - name: Get assembly version
         id: get_version

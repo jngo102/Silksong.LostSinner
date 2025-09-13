@@ -3,6 +3,7 @@ using System.Linq;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace LostSinner;
 
@@ -24,6 +25,7 @@ internal class Sinner : MonoBehaviour {
 
     private void Awake() {
         GetComponents();
+        ChangeBlackThreadVoice();
         ChangeTextures();
         IncreaseHealth();
         RemoveStuns();
@@ -38,6 +40,15 @@ internal class Sinner : MonoBehaviour {
         _body = GetComponent<Rigidbody2D>();
         _control = gameObject.LocateMyFSM("Control");
         _heroTransform = HeroController.instance.transform;
+    }
+
+    /// <summary>
+    /// Distort the boss's voice to be like other void-corrupted enemies.
+    /// </summary>
+    private void ChangeBlackThreadVoice() {
+        var voiceAudio = transform.Find("Audio Loop Voice").GetComponent<AudioSource>();
+        var blackThreadMixerGroup = voiceAudio.outputAudioMixerGroup.audioMixer.FindMatchingGroups("Actors VoiceBlackThread");
+        voiceAudio.outputAudioMixerGroup = blackThreadMixerGroup[0];
     }
 
     /// <summary>
@@ -193,12 +204,10 @@ internal class Sinner : MonoBehaviour {
         }
 
         _anim.Play("Cast");
-        Log.Info("Facing hero...");
         FaceHero();
-        Log.Info("Faced hero.");
         _body.linearVelocity = new Vector2(0, 15f);
 
-        float riseTime = 0.5f;
+        float riseTime = 0.25f;
         float riseTimer = 0;
         yield return new WaitUntil(() => {
             riseTimer += Time.deltaTime;
@@ -226,7 +235,7 @@ internal class Sinner : MonoBehaviour {
             var audioSource = audioPlayer.GetComponent<AudioSource>();
             audioSource.pitch = Random.Range(0.85f, 1.15f);
             audioSource.PlayOneShot(spitClip);
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(0.05f);
         }
 
         _control.SendEvent("FINISHED");
@@ -242,5 +251,9 @@ internal class Sinner : MonoBehaviour {
             scale.x *= -1;
             transform.localScale = scale;
         }
+    }
+
+    private void OnDestroy() {
+        AssetManager.UnloadCustomBundles();
     }
 }

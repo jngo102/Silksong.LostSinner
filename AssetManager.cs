@@ -17,6 +17,8 @@ internal static class AssetManager {
         "localpoolprefabs_assets_laceboss"
     };
 
+    private static List<AssetBundle> _customLoadedBundles = new();
+
     private static string[] _assetNames = new[] {
         // "Abyss Bullet",
         "Abyss Vomit Glob",
@@ -28,10 +30,15 @@ internal static class AssetManager {
 
     private static readonly Dictionary<Type, Dictionary<string, Object>> Assets = new();
 
+    private static bool _initialized;
+
     /// <summary>
     /// Load all desired assets from loaded asset bundles.
     /// </summary>
     internal static void Initialize() {
+        if (_initialized) return;
+        _initialized = true;
+        
         foreach (string bundleName in _bundleNames) {
             string platformFolder = Application.platform switch {
                 RuntimePlatform.WindowsPlayer => "StandaloneWindows64",
@@ -44,6 +51,7 @@ internal static class AssetManager {
             var bundleLoadRequest = AssetBundle.LoadFromFileAsync(bundlePath);
             bundleLoadRequest.completed += _ => {
                 AssetBundle bundle = bundleLoadRequest.assetBundle;
+                _customLoadedBundles.Add(bundle);
                 foreach (var assetPath in bundle.GetAllAssetNames()) {
                     foreach (var assetName in _assetNames) {
                         if (assetPath.Contains(assetName)) {
@@ -52,7 +60,6 @@ internal static class AssetManager {
                                 var loadedAsset = assetLoadRequest.asset;
                                 
                                 if (loadedAsset is GameObject prefab && loadedAsset.name == "Lost Lace Ground Tendril") {
-                                    Log.Info("Tendrils");
                                     var tendrilConstraints = prefab.GetComponent<ConstrainPosition>();
                                 tendrilConstraints.xMax = 100;
                                 tendrilConstraints.yMin = 0;
@@ -111,6 +118,7 @@ internal static class AssetManager {
 
         foreach (var bundle in AssetBundle.GetAllLoadedAssetBundles()) {
             foreach (var assetPath in bundle.GetAllAssetNames()) {
+                Log.Info("Path: " + assetPath);
                 if (_assetNames.Any(objName => assetPath.Contains(objName))) {
                     var assetLoadHandle = bundle.LoadAssetAsync(assetPath);
                     assetLoadHandle.completed += _ => {
@@ -140,7 +148,7 @@ internal static class AssetManager {
     /// <summary>
     /// Unload all saved assets.
     /// </summary>
-    internal static void Unload() {
+    internal static void UnloadAll() {
         foreach (var assetDict in Assets.Values) {
             foreach (var asset in assetDict.Values) {
                 Object.DestroyImmediate(asset);
@@ -149,6 +157,18 @@ internal static class AssetManager {
 
         Assets.Clear();
         GC.Collect();
+    }
+
+    /// <summary>
+    /// Unload bundles that were manually loaded for this mod.
+    /// </summary>
+    internal static void UnloadCustomBundles() {
+        foreach (var bundle in _customLoadedBundles) {
+            var unloadBundleHandle = bundle.UnloadAsync(true);
+            unloadBundleHandle.completed += _ => {
+                Log.Info("Successfully unloaded bundle");
+            };
+        }
     }
 
     /// <summary>
