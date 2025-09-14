@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -17,7 +18,7 @@ internal static class AssetManager {
         "localpoolprefabs_assets_laceboss"
     };
 
-    private static List<AssetBundle> _customLoadedBundles = new();
+    private static List<AssetBundle> _manuallyLoadedBundles = new();
 
     private static string[] _assetNames = new[] {
         // "Abyss Bullet",
@@ -35,10 +36,57 @@ internal static class AssetManager {
     /// <summary>
     /// Load all desired assets from loaded asset bundles.
     /// </summary>
-    internal static void Initialize() {
-        if (_initialized) return;
+    internal static IEnumerator Initialize() {
+        if (_initialized) {
+            yield break;
+        }
+
         _initialized = true;
-        
+
+        foreach (var bundle in AssetBundle.GetAllLoadedAssetBundles()) {
+            foreach (var assetPath in bundle.GetAllAssetNames()) {
+                if (_assetNames.Any(objName => assetPath.Contains(objName))) {
+                    var assetLoadHandle = bundle.LoadAssetAsync(assetPath);
+                    yield return assetLoadHandle;
+
+                    var loadedAsset = assetLoadHandle.asset;
+                    if (loadedAsset != null) {
+                        Type assetType = loadedAsset.GetType();
+                        string assetName = loadedAsset.name;
+                        if (Assets.ContainsKey(assetType)) {
+                            var existingAssetSubDict = Assets[assetType];
+                            if (existingAssetSubDict != null) {
+                                if (existingAssetSubDict.ContainsKey(assetName)) {
+                                    var existingAsset = existingAssetSubDict[assetName];
+                                    if (existingAsset != null) {
+                                        Log.Warn($"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
+                                    } else {
+                                        Log.Info(
+                                            $"Key \"{assetName}\" for sub-dictionary of type \"{assetType}\" exists, but its value is null; Replacing with new asset...");
+                                        Assets[assetType][assetName] = loadedAsset;
+                                    }
+                                } else {
+                                    Log.Debug($"Adding asset {assetName} of type {assetType}...");
+                                    Assets[assetType].Add(assetName, loadedAsset);
+                                }
+                            } else {
+                                Assets.Add(assetType, new Dictionary<string, Object>());
+                            }
+                        } else {
+                            Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = loadedAsset });
+                            Log.Debug(
+                                $"Added new sub-dictionary of type {assetType} with initial asset {assetName}.");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Manually load asset bundles.
+    /// </summary>
+    internal static IEnumerator ManuallyLoadBundles() {
         foreach (string bundleName in _bundleNames) {
             string platformFolder = Application.platform switch {
                 RuntimePlatform.WindowsPlayer => "StandaloneWindows64",
@@ -49,18 +97,20 @@ internal static class AssetManager {
 
             string bundlePath = Path.Combine(Addressables.RuntimePath, platformFolder, $"{bundleName}.bundle");
             var bundleLoadRequest = AssetBundle.LoadFromFileAsync(bundlePath);
-            bundleLoadRequest.completed += _ => {
-                AssetBundle bundle = bundleLoadRequest.assetBundle;
-                _customLoadedBundles.Add(bundle);
-                foreach (var assetPath in bundle.GetAllAssetNames()) {
-                    foreach (var assetName in _assetNames) {
-                        if (assetPath.Contains(assetName)) {
-                            var assetLoadRequest = bundle.LoadAssetAsync(assetPath);
-                            assetLoadRequest.completed += _ => {
-                                var loadedAsset = assetLoadRequest.asset;
-                                
-                                if (loadedAsset is GameObject prefab && loadedAsset.name == "Lost Lace Ground Tendril") {
-                                    var tendrilConstraints = prefab.GetComponent<ConstrainPosition>();
+            yield return bundleLoadRequest;
+
+            AssetBundle bundle = bundleLoadRequest.assetBundle;
+            _manuallyLoadedBundles.Add(bundle);
+            foreach (var assetPath in bundle.GetAllAssetNames()) {
+                foreach (var assetName in _assetNames) {
+                    if (assetPath.Contains(assetName)) {
+                        var assetLoadRequest = bundle.LoadAssetAsync(assetPath);
+                        assetLoadRequest.completed += _ => {
+                            var loadedAsset = assetLoadRequest.asset;
+
+                            if (loadedAsset is GameObject prefab &&
+                                loadedAsset.name == "Lost Lace Ground Tendril") {
+                                var tendrilConstraints = prefab.GetComponent<ConstrainPosition>();
                                 tendrilConstraints.xMax = 100;
                                 tendrilConstraints.yMin = 0;
                                 tendrilConstraints.yMax = 100;
@@ -92,54 +142,31 @@ internal static class AssetManager {
                                         tendrilState.Actions = recycleActions;
                                     }
                                 }
+                            }
 
-                                prefab.CreatePool(6);
-                                }
-                                
-                                var assetType = loadedAsset.GetType();
-                                if (Assets.TryGetValue(assetType, out var assetEntry)) {
-                                    if (assetEntry.ContainsKey(assetName)) {
-                                        Log.Warn($"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
+                            var assetType = loadedAsset.GetType();
+                            if (Assets.ContainsKey(assetType) && Assets[assetType] != null) {
+                                var assetEntry = Assets[assetType];
+                                if (assetEntry.ContainsKey(assetName)) {
+                                    if (!assetEntry[assetName]) {
+                                        Log.Info(
+                                            $"Asset \"{assetName}\" of type \"{assetType}\" already exists but is null, replacing it with the newly-loaded asset.");
+                                        assetEntry[assetName] = loadedAsset;
                                     } else {
-                                        Log.Debug($"Adding asset {assetName} of type {assetType}");
-                                        assetEntry.Add(assetName, loadedAsset);
+                                        Log.Warn(
+                                            $"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
                                     }
                                 } else {
-                                    Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = loadedAsset });
-                                    Log.Debug(
-                                        $"Added new sub-dictionary of type {assetType} with initial asset {assetName}");
-                                }
-                            };
-                        }
-                    }
-                }
-            };
-        }
-
-        foreach (var bundle in AssetBundle.GetAllLoadedAssetBundles()) {
-            foreach (var assetPath in bundle.GetAllAssetNames()) {
-                Log.Info("Path: " + assetPath);
-                if (_assetNames.Any(objName => assetPath.Contains(objName))) {
-                    var assetLoadHandle = bundle.LoadAssetAsync(assetPath);
-                    assetLoadHandle.completed += _ => {
-                        var asset = assetLoadHandle.asset;
-                        if (asset != null) {
-                            Type assetType = asset.GetType();
-                            string assetName = asset.name;
-                            if (Assets.TryGetValue(assetType, out var assetEntry)) {
-                                if (assetEntry.ContainsKey(assetName)) {
-                                    Log.Warn($"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
-                                } else {
                                     Log.Debug($"Adding asset {assetName} of type {assetType}");
-                                    assetEntry.Add(assetName, asset);
+                                    assetEntry.Add(assetName, loadedAsset);
                                 }
                             } else {
-                                Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = asset });
+                                Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = loadedAsset });
                                 Log.Debug(
                                     $"Added new sub-dictionary of type {assetType} with initial asset {assetName}");
                             }
-                        }
-                    };
+                        };
+                    }
                 }
             }
         }
@@ -162,35 +189,45 @@ internal static class AssetManager {
     /// <summary>
     /// Unload bundles that were manually loaded for this mod.
     /// </summary>
-    internal static void UnloadCustomBundles() {
-        foreach (var bundle in _customLoadedBundles) {
+    internal static void UnloadManualBundles() {
+        foreach (var bundle in _manuallyLoadedBundles) {
             var unloadBundleHandle = bundle.UnloadAsync(true);
-            unloadBundleHandle.completed += _ => {
-                Log.Info("Successfully unloaded bundle");
-            };
+            unloadBundleHandle.completed += _ => { Log.Info("Successfully unloaded bundle"); };
         }
+
+        _manuallyLoadedBundles.Clear();
     }
 
     /// <summary>
     /// Fetch an asset.
     /// </summary>
     /// <param name="assetName">The name of the asset to fetch.</param>
-    /// <param name="asset">The variable to output the found asset to.</param>
     /// <typeparam name="T">The type of asset to fetch.</typeparam>
-    internal static bool TryGet<T>(string assetName, out T? asset) where T : Object {
-        if (Assets.TryGetValue(typeof(T), out var subDict)) {
-            if (subDict.TryGetValue(assetName, out var assetObj)) {
-                asset = assetObj as T;
-                return true;
+    /// <returns>The fetched object if it exists, otherwise returns null.</returns>
+    internal static T? Get<T>(string assetName) where T : Object {
+        Type assetType = typeof(T);
+        if (Assets.ContainsKey(assetType)) {
+            var subDict = Assets[assetType];
+            if (subDict != null) {
+                if (subDict.ContainsKey(assetName)) {
+                    var assetObj = subDict[assetName];
+                    if (assetObj != null) {
+                        return assetObj as T;
+                    }
+
+                    Log.Error($"Failed to get asset \"{assetName}\"; asset is null!");
+                    return null;;
+                }
+
+                Log.Error($"Sub-dictionary for type \"{assetType}\" does not contain key \"{assetName}\"!");
+                return null;;
             }
 
-            Log.Error($"Failed to get asset {assetName}!");
-            asset = null;
-            return false;
+            Log.Error($"Failed to get asset \"{assetName}\"; sub-dictionary of key \"{assetType}\" is null!");
+            return null;
         }
 
-        Log.Error($"Failed to get sub-dictionary of type {typeof(T)}!");
-        asset = null;
-        return false;
+        Log.Error($"Could not find a sub-dictionary of type \"{assetType}\"!");
+        return null;
     }
 }

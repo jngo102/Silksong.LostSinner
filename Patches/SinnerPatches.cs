@@ -2,12 +2,12 @@ using HarmonyLib;
 using TeamCherry.Localization;
 using UnityEngine;
 
-namespace LostSinner;
+namespace LostSinner.Patches;
 
 /// <summary>
-/// Patches methods for the mod.
+/// SinnerPatches methods for the mod.
 /// </summary>
-internal static class Patches {
+internal static class SinnerPatches {
     /// <summary>
     /// Modify the final boss behavior.
     /// </summary>
@@ -18,6 +18,8 @@ internal static class Patches {
         if (__instance.name == "First Weaver" && __instance.FsmName == "Control" &&
             __instance.gameObject.layer == LayerMask.NameToLayer("Enemies")) {
             __instance.gameObject.AddComponent<Sinner>();
+        } else if (__instance.name == "Pin Projectiles") {
+            __instance.gameObject.AddComponent<PinProjectiles>();
         }
     }
 
@@ -50,15 +52,4 @@ internal static class Patches {
             _ => __result
         };
     }
-
-    #if DEBUG
-    /// <summary>
-    /// Force invincibility for debug purposes.
-    /// </summary>
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(HeroController), "Awake")]
-    private static void ForceInvincible() {
-        CheatManager.Invincibility = CheatManager.InvincibilityStates.PreventDeath;
-    }
-    #endif
 }

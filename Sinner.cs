@@ -1,9 +1,15 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using GlobalEnums;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
+using Quaternion = UnityEngine.Quaternion;
 using Random = UnityEngine.Random;
+using Vector2 = UnityEngine.Vector2;
+using Vector3 = UnityEngine.Vector3;
 
 namespace LostSinner;
 
@@ -22,14 +28,26 @@ internal class Sinner : MonoBehaviour {
     private Transform _heroTransform = null!;
 
     private bool _stopTendrilSpawn;
+    private List<GameObject> _trackedObjects = new List<GameObject>();
 
     private void Awake() {
+        StartCoroutine(SetupBoss());
+    }
+
+    /// <summary>
+    /// Set up the modded boss.
+    /// </summary>
+    private IEnumerator SetupBoss() {
+        yield return AssetManager.ManuallyLoadBundles();
+        yield return AssetManager.Initialize();
+
         GetComponents();
         ChangeBlackThreadVoice();
         ChangeTextures();
+        ModifyDamage();
         IncreaseHealth();
         RemoveStuns();
-        ChangeFSM();
+        ModifyFsm();
     }
 
     /// <summary>
@@ -47,7 +65,8 @@ internal class Sinner : MonoBehaviour {
     /// </summary>
     private void ChangeBlackThreadVoice() {
         var voiceAudio = transform.Find("Audio Loop Voice").GetComponent<AudioSource>();
-        var blackThreadMixerGroup = voiceAudio.outputAudioMixerGroup.audioMixer.FindMatchingGroups("Actors VoiceBlackThread");
+        var blackThreadMixerGroup =
+            voiceAudio.outputAudioMixerGroup.audioMixer.FindMatchingGroups("Actors VoiceBlackThread");
         voiceAudio.outputAudioMixerGroup = blackThreadMixerGroup[0];
     }
 
@@ -59,6 +78,21 @@ internal class Sinner : MonoBehaviour {
         var cln = sprite.Collection;
         cln.materials[0].mainTexture = Plugin.AtlasTextures[0];
         cln.materials[1].mainTexture = Plugin.AtlasTextures[1];
+    }
+
+    /// <summary>
+    /// Modify the damage behavior of the boss.
+    /// </summary>
+    private void ModifyDamage() {
+        foreach (var damageHero in GetComponentsInChildren<DamageHero>(true)) {
+            var woundFsm = damageHero.gameObject.LocateMyFSM("hornet_multi_wounder");
+            if (woundFsm) {
+                woundFsm.Fsm.GetFsmBool("z3 Force Black Threaded").Value = true;
+                return;
+            }
+            damageHero.damageDealt = 2;
+            damageHero.damagePropertyFlags = DamagePropertyFlags.None | DamagePropertyFlags.Void;
+        }
     }
 
     /// <summary>
@@ -79,25 +113,40 @@ internal class Sinner : MonoBehaviour {
     /// <summary>
     /// Update the boss's <see cref="PlayMakerFSM">state machine</see>.
     /// </summary>
-    private void ChangeFSM() {
+    private void ModifyFsm() {
         AddAbyssTendrilsToCharge();
         AddVomitGlobAttack();
+        MakeFacingSecondSlash();
+        ShortenBindTime();
+        ModifyPhase2();
     }
 
     /// <summary>
     /// Spawn abyss tendrils while the boss is performing a charging slice.
     /// </summary>
     private void AddAbyssTendrilsToCharge() {
+        var groundTendrilPrefab = AssetManager.Get<GameObject>("Lost Lace Ground Tendril");
+        if (!groundTendrilPrefab) {
+            return;
+        }
+
         var sinnerStates = _control.FsmStates;
         foreach (var sinnerState in sinnerStates) {
             if (sinnerState.Name == "Slice Charge") {
                 var chargeActions = sinnerState.Actions.ToList();
-                chargeActions.Insert(0, new InvokeCoroutine(SpawnTendrils, false));
+                // chargeActions.Insert(0, new InvokeCoroutine(SpawnTendrils, false));
+                chargeActions.Insert(0, new SpawnObjectFromGlobalPoolOverTime {
+                    gameObject = groundTendrilPrefab,
+                    spawnPoint = gameObject,
+                    position = Vector3.up * (GroundY - 11.2f),
+                    rotation = Vector3.one,
+                    frequency = 0.3f
+                });
                 sinnerState.Actions = chargeActions.ToArray();
             } else if (sinnerState.Name == "Multislash") {
-                var multislashActions = sinnerState.Actions.ToList();
-                multislashActions.Insert(0, new InvokeMethod(StopTendrilSpawn));
-                sinnerState.Actions = multislashActions.ToArray();
+                // var multislashActions = sinnerState.Actions.ToList();
+                // multislashActions.Insert(0, new InvokeMethod(StopTendrilSpawn));
+                // sinnerState.Actions = multislashActions.ToArray();
             }
         }
     }
@@ -133,7 +182,7 @@ internal class Sinner : MonoBehaviour {
         var vomitTracker = new FsmInt("Ct Vomit");
         vomitTracker.Value = 0;
         var vomitMax = new FsmInt("Vomit Max");
-        vomitMax.Value = 3;
+        vomitMax.Value = 2;
         var vomitMissed = new FsmInt("Ms Vomit");
         vomitMissed.Value = 0;
         var vomitMissedMax = new FsmInt("Ms Vomit");
@@ -160,30 +209,96 @@ internal class Sinner : MonoBehaviour {
     }
 
     /// <summary>
-    /// Stop spawning abyss tendrils.
+    /// Make the second slash of the double slash attack face the player.
     /// </summary>
-    private void StopTendrilSpawn() {
-        _stopTendrilSpawn = true;
+    private void MakeFacingSecondSlash() {
+        var slash3State = _control.FsmStates.FirstOrDefault(state => state.Name == "Slash 3");
+        if (slash3State != null) {
+            var slashActions = slash3State.Actions.ToList();
+            slashActions.Insert(0, new InvokeMethod(FaceHero));
+            slash3State.Actions = slashActions.ToArray();
+        }
     }
 
     /// <summary>
-    /// Spawn tendrils in intervals.
+    /// Shorten the duration of the boss's healing bind.
     /// </summary>
-    private IEnumerator SpawnTendrils() {
-        if (!AssetManager.TryGet<GameObject>("Lost Lace Ground Tendril", out var groundTendril) ||
-            groundTendril == null) {
-            yield break;
+    private void ShortenBindTime() {
+        var bindState = _control.FsmStates.FirstOrDefault(state => state.Name == "Bind Silk");
+        if (bindState != null) {
+            foreach (var action in bindState.Actions) {
+                if (action is Wait wait) {
+                    wait.time = 1f;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Make changes when the boss enters phase 2.
+    /// </summary>
+    private void ModifyPhase2() {
+        var p2StartState = _control.FsmStates.FirstOrDefault(state => state.name == "P2 Start");
+        if (p2StartState != null) {
+            p2StartState.Actions = p2StartState.Actions
+                .Append(new InvokeMethod(IncreaseChargeSliceSpeed))
+                .Append(new InvokeMethod(IncreaseSlashSpeed))
+                .Append(new InvokeMethod(SpeedUpPhase2Pins))
+                .ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Increase the speed of the charging slice attack.
+    /// </summary>
+    private void IncreaseChargeSliceSpeed() {
+        var sliceChargeState = _control.FsmStates.First(state => state.Name == "Slice Charge");
+        var sliceChargeActions = sliceChargeState.Actions;
+        if (sliceChargeActions[1] is SetVelocityByScale setVelocity) {
+            setVelocity.speed = -12;
         }
 
-        float interval = 0.3f;
-        for (float time = 0; time < 1.5f; time += interval) {
-            if (_stopTendrilSpawn) {
-                _stopTendrilSpawn = false;
-                break;
-            }
+        if (sliceChargeActions[2] is AccelerateToXByScale accelerateToX) {
+            accelerateToX.accelerationFactor = 0.65f;
+            accelerateToX.targetSpeed = 40;
+        }
 
-            Instantiate(groundTendril, new Vector2(transform.position.x, GroundY), Quaternion.identity);
-            yield return new WaitForSeconds(interval);
+        if (sliceChargeActions[6] is Wait wait) {
+            wait.time = 1f;
+        }
+    }
+
+    /// <summary>
+    /// Increase the speed of the double slash attack.
+    /// </summary>
+    private void IncreaseSlashSpeed() {
+        var slash1State = _control.FsmStates.First(state => state.Name == "Slash 1");
+        if (slash1State.Actions[1] is SetVelocityByScale slash1SetVelocity) {
+            slash1SetVelocity.speed = -90;
+            slash1SetVelocity.ySpeed = -45;
+        }
+
+        var slash4State = _control.FsmStates.First(state => state.Name == "Slash 4");
+        if (slash4State.Actions[1] is SetVelocityByScale slash4SetVelocity) {
+            slash4SetVelocity.speed = -90;
+            slash4SetVelocity.ySpeed = -45;
+        }
+    }
+
+    /// <summary>
+    /// Increase the firing speed of pins in phase 2 of the boss fight. 
+    /// </summary>
+    private void SpeedUpPhase2Pins() {
+        foreach (var pinFsm in FindObjectsByType<PlayMakerFSM>(FindObjectsSortMode.None)
+                     .Where(fsm => fsm.name.Contains("FW Pin Projectile"))) {
+            var fireState = pinFsm.FsmStates.First(state => state.Name == "Fire");
+            var setVelAction = fireState.Actions.First(action => action is SetVelocityAsAngle) as SetVelocityAsAngle;
+            setVelAction!.speed = 180;
+
+            var threadPullState = pinFsm.FsmStates.First(state => state.Name == "Thread Pull");
+            var wait = threadPullState.Actions.First(action => action is Wait) as Wait;
+            wait!.time = 0.3f;
         }
     }
 
@@ -191,15 +306,18 @@ internal class Sinner : MonoBehaviour {
     /// Perform the new abyss vomit glob attack.
     /// </summary>
     private IEnumerator VomitGlobAttack() {
-        if (!AssetManager.TryGet<GameObject>("Abyss Vomit Glob", out var abyssGlobPrefab)) {
+        var abyssGlobPrefab = AssetManager.Get<GameObject>("Abyss Vomit Glob");
+        if (abyssGlobPrefab == null) {
             yield break;
         }
 
-        if (!AssetManager.TryGet<GameObject>("Audio Player Actor Simple", out var audioPlayerPrefab)) {
+        var audioPlayerPrefab = AssetManager.Get<GameObject>("Audio Player Actor Simple");
+        if (audioPlayerPrefab == null) {
             yield break;
         }
 
-        if (!AssetManager.TryGet<AudioClip>("mini_mawlek_spit", out var spitClip)) {
+        var spitClip = AssetManager.Get<AudioClip>("mini_mawlek_spit");
+        if (spitClip == null) {
             yield break;
         }
 
@@ -230,7 +348,7 @@ internal class Sinner : MonoBehaviour {
                 AngleMax = 135,
                 AmountMin = 1,
                 AmountMax = 1,
-            }, transform, Vector3.up * 2);
+            }, transform, Vector3.up * 2, _trackedObjects);
             var audioPlayer = audioPlayerPrefab.Spawn(transform.position);
             var audioSource = audioPlayer.GetComponent<AudioSource>();
             audioSource.pitch = Random.Range(0.85f, 1.15f);
@@ -254,6 +372,6 @@ internal class Sinner : MonoBehaviour {
     }
 
     private void OnDestroy() {
-        AssetManager.UnloadCustomBundles();
+        AssetManager.UnloadManualBundles();
     }
 }

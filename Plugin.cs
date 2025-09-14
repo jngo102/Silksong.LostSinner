@@ -2,6 +2,7 @@ using System.IO;
 using System.Reflection;
 using BepInEx;
 using HarmonyLib;
+using LostSinner.Patches;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -20,6 +21,11 @@ public class Plugin : BaseUnityPlugin {
         Log.Init(Logger);
 
         LoadSinnerTextures();
+        
+        _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
+        #if DEBUG
+        _harmony.PatchAll(typeof(DebugPatches));
+        #endif
 
         SceneManager.activeSceneChanged += OnSceneChange;
     }
@@ -32,15 +38,11 @@ public class Plugin : BaseUnityPlugin {
         
         // Remove all patches when returning to the main menu
         if (newScene.name == "Menu_Title") {
-            AssetManager.UnloadCustomBundles();
             _harmony.UnpatchSelf();
         } else {
-            AssetManager.Initialize();
-
             if (GameManager.GetSaveStatsFromData(GameManager.instance.GetSaveGameData(PlayerData.instance.profileID))
                 .IsAct3) {
-                _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
-                _harmony.PatchAll(typeof(Patches));
+                _harmony.PatchAll(typeof(SinnerPatches));
             }
         }
     }
