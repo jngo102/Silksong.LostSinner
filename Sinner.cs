@@ -1,15 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using GlobalEnums;
 using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
-using Quaternion = UnityEngine.Quaternion;
-using Random = UnityEngine.Random;
-using Vector2 = UnityEngine.Vector2;
-using Vector3 = UnityEngine.Vector3;
 
 namespace LostSinner;
 
@@ -26,8 +21,6 @@ internal class Sinner : MonoBehaviour {
     private Rigidbody2D _body = null!;
     private PlayMakerFSM _control = null!;
     private Transform _heroTransform = null!;
-
-    private bool _stopTendrilSpawn;
     private List<GameObject> _trackedObjects = new List<GameObject>();
 
     private void Awake() {
@@ -90,6 +83,7 @@ internal class Sinner : MonoBehaviour {
                 woundFsm.Fsm.GetFsmBool("z3 Force Black Threaded").Value = true;
                 return;
             }
+
             damageHero.damageDealt = 2;
             damageHero.damagePropertyFlags = DamagePropertyFlags.None | DamagePropertyFlags.Void;
         }
@@ -100,6 +94,9 @@ internal class Sinner : MonoBehaviour {
     /// </summary>
     private void IncreaseHealth() {
         var health = GetComponent<HealthManager>();
+        #if DEBUG
+        health.hp = 100;
+        #endif
         health.hp = 2000;
     }
 
@@ -134,19 +131,14 @@ internal class Sinner : MonoBehaviour {
         foreach (var sinnerState in sinnerStates) {
             if (sinnerState.Name == "Slice Charge") {
                 var chargeActions = sinnerState.Actions.ToList();
-                // chargeActions.Insert(0, new InvokeCoroutine(SpawnTendrils, false));
                 chargeActions.Insert(0, new SpawnObjectFromGlobalPoolOverTime {
                     gameObject = groundTendrilPrefab,
                     spawnPoint = gameObject,
                     position = Vector3.up * (GroundY - 11.2f),
                     rotation = Vector3.one,
-                    frequency = 0.3f
+                    frequency = 0.25f
                 });
                 sinnerState.Actions = chargeActions.ToArray();
-            } else if (sinnerState.Name == "Multislash") {
-                // var multislashActions = sinnerState.Actions.ToList();
-                // multislashActions.Insert(0, new InvokeMethod(StopTendrilSpawn));
-                // sinnerState.Actions = multislashActions.ToArray();
             }
         }
     }
@@ -243,9 +235,33 @@ internal class Sinner : MonoBehaviour {
         if (p2StartState != null) {
             p2StartState.Actions = p2StartState.Actions
                 .Append(new InvokeMethod(IncreaseChargeSliceSpeed))
-                .Append(new InvokeMethod(IncreaseSlashSpeed))
                 .Append(new InvokeMethod(SpeedUpPhase2Pins))
+                .Append(new InvokeMethod(SlashToCharge))
                 .ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Transition from the boss's double slash attack to its charging slice attack.
+    /// </summary>
+    private void SlashToCharge() {
+        FsmState afterSlashState = null, sliceChargeAnticState = null;
+        foreach (var state in _control.FsmStates) {
+            if (state.Name == "After Slash") {
+                afterSlashState = state;
+            } else if (state.Name == "Slice Charge Antic") {
+                sliceChargeAnticState = state;
+            }
+        }
+
+        if (afterSlashState != null && sliceChargeAnticState != null) {
+            afterSlashState.Transitions = new FsmTransition[] {
+                new FsmTransition {
+                    toFsmState = sliceChargeAnticState,
+                    toState = afterSlashState.Name,
+                    FsmEvent = FsmEvent.Finished
+                }
+            };
         }
     }
 
@@ -270,23 +286,6 @@ internal class Sinner : MonoBehaviour {
     }
 
     /// <summary>
-    /// Increase the speed of the double slash attack.
-    /// </summary>
-    private void IncreaseSlashSpeed() {
-        var slash1State = _control.FsmStates.First(state => state.Name == "Slash 1");
-        if (slash1State.Actions[1] is SetVelocityByScale slash1SetVelocity) {
-            slash1SetVelocity.speed = -90;
-            slash1SetVelocity.ySpeed = -45;
-        }
-
-        var slash4State = _control.FsmStates.First(state => state.Name == "Slash 4");
-        if (slash4State.Actions[1] is SetVelocityByScale slash4SetVelocity) {
-            slash4SetVelocity.speed = -90;
-            slash4SetVelocity.ySpeed = -45;
-        }
-    }
-
-    /// <summary>
     /// Increase the firing speed of pins in phase 2 of the boss fight. 
     /// </summary>
     private void SpeedUpPhase2Pins() {
@@ -297,8 +296,9 @@ internal class Sinner : MonoBehaviour {
             setVelAction!.speed = 180;
 
             var threadPullState = pinFsm.FsmStates.First(state => state.Name == "Thread Pull");
-            var wait = threadPullState.Actions.First(action => action is Wait) as Wait;
-            wait!.time = 0.3f;
+            if (threadPullState.Actions[3] is Wait wait) {
+                wait.time = 0.33f;
+            }
         }
     }
 

@@ -21,7 +21,7 @@ internal class PinProjectiles : MonoBehaviour {
     /// </summary>
     private void CreateMorePins() {
         for (int i = 0; i < AdditionalPins; i++) {
-            var extraPin = Instantiate(transform.GetChild(4).gameObject, transform);
+            var extraPin = Instantiate(transform.GetChild(0).gameObject, transform);
         }
     }
 
@@ -41,9 +41,11 @@ internal class PinProjectiles : MonoBehaviour {
         };
         var posXFloat = fsm.GetFsmFloat("Pos X");
         var rotationFloat = fsm.GetFsmFloat("Rotation");
+        var sceneCentreX = fsm.GetFsmFloat("Scene Centre X");
 
         foreach (var state in patternCtrl.FsmStates) {
             switch (state.name) {
+                // Increase number of pins in the pin rain attack
                 case "Rain 1": {
                     foreach (var action in state.Actions) {
                         if (action is SetIntValue setInt) {
@@ -54,6 +56,7 @@ internal class PinProjectiles : MonoBehaviour {
 
                     break;
                 }
+                // Decrease the spacing between pins in the pin rain attack
                 case "Rain 2": {
                     foreach (var action in state.Actions) {
                         if (action is FloatAdd rain2FloatAdd) {
@@ -64,81 +67,49 @@ internal class PinProjectiles : MonoBehaviour {
 
                     break;
                 }
-                case "Claw L":
-                    var clawLActions = state.Actions.ToList();
-                    // if (clawLActions[3] is FloatOperator clawLfloatOp1) {
-                    //     clawLfloatOp1.float1 = 12;   
-                    // }
-                    //
-                    // if (clawLActions[10] is FloatOperator clawLfloatOp2) {
-                    //     clawLfloatOp2.float1 = 16;
-                    // }
-                    //
-                    // if (clawLActions[17] is FloatOperator clawLfloatOp3) {
-                    //     clawLfloatOp3.float1 = 24;
-                    // }
-
-                    var clawLExtraPinOffsets = new Vector2[] {
-                        new Vector2(48, 18.7f),
-                        new Vector2(40, 19.7f)
+                // Change sweep attack to link only to the Sweep R state
+                case "Sweep Dir":
+                    state.Actions = new FsmStateAction[] {
+                        new SendEventByName {
+                            eventTarget = FsmEventTarget.Self,
+                            sendEvent = "FINISHED"
+                        }
                     };
-                    var clawLExtraPinRotations = new float[] { 242, 228 };
 
-                    for (int pinIndex = 0; pinIndex < clawLExtraPinOffsets.Length; pinIndex++) {
-                        var offset = clawLExtraPinOffsets[pinIndex];
-                        var pinRot = clawLExtraPinRotations[pinIndex];
-
-                        clawLActions.Add(new GetRandomChild {
-                            gameObject = new FsmOwnerDefault(),
-                            storeResult = nextPinObj
-                        });
-                        clawLActions.Add(new GameObjectIsNull {
-                            isNull = FsmEvent.Finished
-                        });
-                        clawLActions.Add(new FloatOperator {
-                            float1 = offset.x,
-                            storeResult = posXFloat
-                        });
-                        clawLActions.Add(new RandomFloat {
-                            min = pinRot,
-                            max = pinRot,
-                            storeResult = rotationFloat
-                        });
-                        clawLActions.Add(new SetPosition {
-                            gameObject = nextPinOwner,
-                            x = posXFloat,
-                            y = offset.y
-                        });
-                        clawLActions.Add(new SetRotation {
-                            gameObject = nextPinOwner,
-                            zAngle = rotationFloat
-                        });
-                        clawLActions.Add(new SendEventByName {
-                            eventTarget = new FsmEventTarget {
-                                target = FsmEventTarget.EventTarget.GameObject,
-                                gameObject = nextPinOwner
-                            },
-                            sendEvent = "ATTACK"
-                        });
+                    var sweepRState = patternCtrl.FsmStates.FirstOrDefault(s => s.name == "Sweep R");
+                    if (sweepRState != null) {
+                        state.Transitions = new FsmTransition[] {
+                            new FsmTransition {
+                                toFsmState = sweepRState,
+                                toState = sweepRState.Name,
+                                FsmEvent = FsmEvent.Finished
+                            }
+                        };
                     }
 
-                    state.Actions = clawLActions.ToArray();
+                    break;
+                // Link the rightward sweep state directly to the leftward sweep state so both occur during the sweep attack 
+                case "Sweep R":
+                    var sweepLState = patternCtrl.FsmStates.FirstOrDefault(s => s.name == "Sweep L");
+                    if (sweepLState != null) {
+                        state.Transitions[0].toFsmState = sweepLState;
+                        state.Transitions[0].toState = sweepLState.Name;
+                    }
+
+                    if (state.Actions[5] is SetPosition sweepRSetPosition) {
+                        sweepRSetPosition.x = sceneCentreX.Value - 15;
+                    }
 
                     break;
+                case "Sweep L":
+                    if (state.Actions[5] is SetPosition sweepLSetPosition) {
+                        sweepLSetPosition.x = sceneCentreX.Value + 15;
+                    }
+
+                    break;
+                // Add more pins to the rightward claw attack
                 case "Claw R": {
                     var clawRActions = state.Actions.ToList();
-                    // if (clawRActions[3] is FloatOperator clawRfloatOp1) {
-                    //     clawRfloatOp1.float1 = 12;   
-                    // }
-                    //
-                    // if (clawRActions[10] is FloatOperator clawRfloatOp2) {
-                    //     clawRfloatOp2.float1 = 16;
-                    // }
-                    //
-                    // if (clawRActions[17] is FloatOperator clawRfloatOp3) {
-                    //     clawRfloatOp3.float1 = 24;
-                    // }
-
                     var clawRExtraPinOffsets = new Vector2[] {
                         new Vector2(28, 18.7f),
                         new Vector2(35, 19.7f)
@@ -187,42 +158,72 @@ internal class PinProjectiles : MonoBehaviour {
 
                     break;
                 }
-                case "Sweep Dir":
-                    var sweepLState = patternCtrl.FsmStates.First(s => s.Name == "Sweep L");
-                    var sweepRState = patternCtrl.FsmStates.First(s => s.Name == "Sweep R");
+                // Add more pins to the leftward claw attack
+                case "Claw L":
+                    var clawLActions = state.Actions.ToList();
+                    var clawLExtraPinOffsets = new Vector2[] {
+                        new Vector2(48, 18.7f),
+                        new Vector2(40, 19.7f)
+                    };
+                    var clawLExtraPinRotations = new float[] { 242, 228 };
 
-                    var transitionL = state.Transitions.First(transition => transition.EventName == "L");
-                    transitionL.toFsmState = sweepRState;
-                    transitionL.toState = sweepRState.Name;
+                    for (int pinIndex = 0; pinIndex < clawLExtraPinOffsets.Length; pinIndex++) {
+                        var offset = clawLExtraPinOffsets[pinIndex];
+                        var pinRot = clawLExtraPinRotations[pinIndex];
 
-                    var sweepRTransition = sweepRState.Transitions.First(transition => transition.FsmEvent == FsmEvent.Finished);
-                    sweepRTransition.toFsmState = sweepLState;
-                    sweepRTransition.toState = sweepLState.Name;
-                    
+                        clawLActions.Add(new GetRandomChild {
+                            gameObject = new FsmOwnerDefault(),
+                            storeResult = nextPinObj
+                        });
+                        clawLActions.Add(new GameObjectIsNull {
+                            isNull = FsmEvent.Finished
+                        });
+                        clawLActions.Add(new FloatOperator {
+                            float1 = offset.x,
+                            storeResult = posXFloat
+                        });
+                        clawLActions.Add(new RandomFloat {
+                            min = pinRot,
+                            max = pinRot,
+                            storeResult = rotationFloat
+                        });
+                        clawLActions.Add(new SetPosition {
+                            gameObject = nextPinOwner,
+                            x = posXFloat,
+                            y = offset.y
+                        });
+                        clawLActions.Add(new SetRotation {
+                            gameObject = nextPinOwner,
+                            zAngle = rotationFloat
+                        });
+                        clawLActions.Add(new SendEventByName {
+                            eventTarget = new FsmEventTarget {
+                                target = FsmEventTarget.EventTarget.GameObject,
+                                gameObject = nextPinOwner
+                            },
+                            sendEvent = "ATTACK"
+                        });
+                    }
+
+                    state.Actions = clawLActions.ToArray();
+
                     break;
+
                 case "Pincer":
+                    // Add more pins to the pincer attack
                     var actions = state.Actions.ToList();
-
-                    // if (actions[3] is FloatAdd pincerFloatAdd1) {
-                    //     pincerFloatAdd1.add = 15;
-                    // }
-
                     if (actions[4] is RandomFloat pincerRandomFloat1) {
                         pincerRandomFloat1.min = -122;
                         pincerRandomFloat1.max = -118;
                     }
-
-                    // if (actions[11] is FloatAdd pincerFloatAdd2) {
-                    //     pincerFloatAdd2.add = -15;
-                    // }
 
                     if (actions[12] is RandomFloat pincerRandomFloat2) {
                         pincerRandomFloat2.min = -62;
                         pincerRandomFloat2.max = -58;
                     }
 
-                    var pincerExtraPinOffsetsX = new float[] { -15, 15 };
-                    var pincerExtraPinRotations = new float[] { -30, -150 };
+                    var pincerExtraPinOffsetsX = new float[] { -15, 0, 15 };
+                    var pincerExtraPinRotations = new float[] { -30, -90, -150 };
 
                     for (int pinIndex = 0; pinIndex < pincerExtraPinOffsetsX.Length; pinIndex++) {
                         float offsetX = pincerExtraPinOffsetsX[pinIndex];
