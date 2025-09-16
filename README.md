@@ -25,4 +25,8 @@ https://github.com/jngo102/Silksong.LostSinner/releases/latest
 - A save file `user3.dat` right outside the boss rom is provided.
     - Under the `Miscellaneous files` section on the [Nexus Mods page](https://www.nexusmods.com/hollowknightsilksong/mods/169?tab=files).
     - Inside the .zip file on [Thunderstore](https://thunderstore.io/c/hollow-knight-silksong/p/JngoCreates/LostSinner/).
-    - Downloadable from [GitHub releases]().
+    - Downloadable from [GitHub releases](https://github.com/jngo102/Silksong.LostSinner/releases/latest).
+  - To use the save file, navigate to the saves folder of your Hollow Knight: Silksong game and move the user3.dat to the folder where the other user#.dat files are located. 
+    - Windows: `%USERPROFILE%/AppData/LocalLow/Team Cherry/Hollow Knight Silksong/`
+    - macOS: `~/Library/Application Support/unity.Team-Cherry.Silksong/`
+    - Linux: `~/.config/unity3d/Team Cherry/Hollow Knight Silksong/`
