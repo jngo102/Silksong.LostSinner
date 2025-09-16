@@ -24,7 +24,7 @@ public class Plugin : BaseUnityPlugin {
         
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         #if DEBUG
-        _harmony.PatchAll(typeof(DebugPatches));
+        // _harmony.PatchAll(typeof(DebugPatches));
         #endif
 
         SceneManager.activeSceneChanged += OnSceneChange;
@@ -58,7 +58,7 @@ public class Plugin : BaseUnityPlugin {
 
             if (resourceName.Contains("atlas0")) {
                 var buffer = new byte[stream.Length];
-                int read = stream.Read(buffer, 0, buffer.Length);
+                stream.Read(buffer, 0, buffer.Length);
                 var atlasTex = new Texture2D(2, 2);
                 atlasTex.LoadImage(buffer);
                 AtlasTextures[0] = atlasTex;

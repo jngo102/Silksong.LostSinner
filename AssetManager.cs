@@ -21,11 +21,9 @@ internal static class AssetManager {
     private static List<AssetBundle> _manuallyLoadedBundles = new();
 
     private static string[] _assetNames = new[] {
-        // "Abyss Bullet",
         "Abyss Vomit Glob",
         "Audio Player Actor Simple",
         "Lost Lace Ground Tendril",
-        "Lost Lace Summon Bullet",
         "mini_mawlek_spit"
     };
 
@@ -191,11 +189,19 @@ internal static class AssetManager {
     /// </summary>
     internal static void UnloadManualBundles() {
         foreach (var bundle in _manuallyLoadedBundles) {
+            string bundleName = bundle.name;
             var unloadBundleHandle = bundle.UnloadAsync(true);
-            unloadBundleHandle.completed += _ => { Log.Info("Successfully unloaded bundle"); };
+            unloadBundleHandle.completed += _ => { Log.Info($"Successfully unloaded bundle \"{bundleName}\""); };
         }
 
         _manuallyLoadedBundles.Clear();
+
+        foreach (var (_, obj) in Assets[typeof(GameObject)]) {
+            if (obj is GameObject gameObject && gameObject.activeSelf) {
+                Log.Info($"Recycling all instances of prefab \"{gameObject.name}\"");
+                gameObject.RecycleAll();
+            }
+        }
     }
 
     /// <summary>
