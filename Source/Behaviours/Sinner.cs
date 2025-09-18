@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using GlobalEnums;
 using HutongGames.PlayMaker;
@@ -68,8 +67,9 @@ internal class Sinner : MonoBehaviour {
     private void ChangeTextures() {
         var sprite = GetComponent<tk2dSprite>();
         var cln = sprite.Collection;
-        cln.materials[0].mainTexture = Plugin.AtlasTextures[0];
-        cln.materials[1].mainTexture = Plugin.AtlasTextures[1];
+        for (int materialIndex = 0; materialIndex < cln.materials.Length; materialIndex++) {
+            cln.materials[materialIndex].mainTexture = AssetManager.Get<Texture2D>($"atlas{materialIndex}");            
+        }
     }
 
     /// <summary>
