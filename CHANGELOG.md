@@ -2,12 +2,19 @@
 
 ## [0.4.0] - 2025-09-17
 
+### Added
+
+- Added Thunderstore assets
+
 ### Changed
 
-- Changed boss name for HP mods
-- Increase number of total pins so patterns are consistent
+- Increased number of total pins so patterns are consistent
 - Made second phase pin delay slightly slower (0.38 seconds vs 0.33 seconds)
-- Minor project structure refactor
+- Project structure refactor
+
+### Fixed
+
+- Fixed damage for multihit attacks when Barbed Bracelet is equipped
 
 ## [0.3.0] - 2025-09-15
 
