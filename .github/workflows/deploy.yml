@@ -96,7 +96,7 @@ jobs:
           namespace: JngoCreates
           name: ${{ needs.fetch_meta.outputs.name }}
           description: ${{ needs.fetch_meta.outputs.description }}
-          icon: https://github.com/jngo102/Silksong.LostSinner/blob/main/Thunderstore/icon.png
+          icon: https://raw.githubusercontent.com/jngo102/Silksong.LostSinner/refs/heads/main/Thunderstore/icon.png
           version: ${{ needs.fetch_meta.outputs.version }}
           file: 'artifacts/${{ needs.fetch_meta.outputs.name }}-Thunderstore.zip'
           community: hollow-knight-silksong
