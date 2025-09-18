@@ -1,5 +1,11 @@
 # Lost Sinner Changelog
 
+## [0.4.1] - 2025-09-18
+
+### Changed
+
+- Slightly modify how asset bundle loading is done (incremental performance boost?)
+
 ## [0.4.0] - 2025-09-17
 
 ### Added
