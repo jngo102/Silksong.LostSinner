@@ -6,7 +6,7 @@ using UnityEngine;
 namespace LostSinner.Patches;
 
 /// <summary>
-/// SinnerPatches methods for the mod.
+/// Patches methods relevant to the Lost Sinner boss.
 /// </summary>
 internal static class SinnerPatches {
     /// <summary>
