@@ -22,7 +22,7 @@ https://github.com/jngo102/Silksong.LostSinner/releases/latest
 
 ### Important Notes
 - This modded boss is only accessible in Act 3 of the game.
-- A save file `user3.dat` right outside the boss rom is provided.
+- A save file `user3.dat` right outside the boss room is provided.
     - Under the `Miscellaneous files` section on the [Nexus Mods page](https://www.nexusmods.com/hollowknightsilksong/mods/169?tab=files).
     - Inside the .zip file on [Thunderstore](https://thunderstore.io/c/hollow-knight-silksong/p/JngoCreates/LostSinner/).
     - Downloadable from [GitHub releases](https://github.com/jngo102/Silksong.LostSinner/releases/latest).

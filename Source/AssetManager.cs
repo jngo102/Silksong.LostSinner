@@ -86,6 +86,10 @@ internal static class AssetManager {
     /// </summary>
     internal static IEnumerator ManuallyLoadBundles() {
         foreach (string bundleName in _bundleNames) {
+            if (AssetBundle.GetAllLoadedAssetBundles().Any(bundle => bundle.name == bundleName)) {
+                continue;
+            }
+            
             string platformFolder = Application.platform switch {
                 RuntimePlatform.WindowsPlayer => "StandaloneWindows64",
                 RuntimePlatform.OSXPlayer => "StandaloneOSX",

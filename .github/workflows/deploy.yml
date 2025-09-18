@@ -8,8 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       name: ${{ steps.get_name.outputs.name }}
+      description: ${{ steps.get_description.outputs.description }}
       version: ${{ steps.get_version.outputs.version }}
-      # description: ${{ steps.get_description.outputs.description }}
       changelog: ${{ steps.get_changelog.outputs.body }}
     steps:
       - name: Checkout repository
@@ -25,13 +25,12 @@ jobs:
           tag=BepInExPluginName
           mod_name=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
           echo "name=$mod_name" >> $GITHUB_OUTPUT
-          
-#      - name: Get mod description
-#        id: get_description
-#        run: |
-#          tag=Description
-#          description=$(grep --only-matching --perl-regexp "<$tag>\K.*(?=</$tag>)" ${{ steps.get_project_file.outputs.csproj }})
-#          echo "description=$description" >> $GITHUB_OUTPUT
+      
+      - name: Get mod description
+        id: get_description
+        run: |
+          description=$(cat Thunderstore/manifest.json | jq -r '.description')
+          echo "description=$description" >> $GITHUB_OUTPUT
 
       - name: Get assembly version
         id: get_version
@@ -70,36 +69,36 @@ jobs:
       - name: Publish release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: 'artifacts/*.zip'
+          artifacts: 'artifacts/${{ needs.fetch_meta.outputs.name }}.zip'
           name: ${{ needs.fetch_meta.outputs.name }}
           body: ${{ needs.fetch_meta.outputs.changelog }} 
           tag: ${{ needs.fetch_meta.outputs.version }}
           prerelease: true
-#  publish-thunderstore:
-#    name: Publish Thunderstore release
-#    needs: fetch_meta
-#    permissions:
-#      contents: write
-#    runs-on: ubuntu-latest
-#    steps:
-#      - name: Download Thunderstore artifact
-#        uses: dawidd6/action-download-artifact@v11
-#        with:
-#          github_token: ${{ secrets.ACCESS_TOKEN }}
-#          workflow: build.yml
-#          name: Thunderstore
-#          path: thunderstore
+  publish-thunderstore:
+    name: Publish Thunderstore release
+    needs: fetch_meta
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          github_token: ${{ secrets.ACCESS_TOKEN }}
+          workflow: build.yml
+          name: artifact
+          path: artifacts
 #
-#      - name: Publish release
-#        uses: dhkatz/thunderstore-publish@v1
-#        id: publish
-#        with:
-#          token: ${{ secrets.THUNDERSTORE_TOKEN }}
-#          namespace: JngoCreates
-#          name: ${{ needs.fetch_meta.outputs.name }}
-#          description: ${{ needs.fetch_meta.outputs.description }}
-#          version: ${{ needs.fetch_meta.outputs.version }}
-#          path: 'thunderstore/*.zip'
-#          communities: Silksong
-#          categories: |
-#            mods
+      - name: Upload to Thunderstore
+        uses: GreenTF/upload-thunderstore-package@v4.3
+        with:
+          token: ${{ secrets.THUNDERSTORE_TOKEN }}
+          namespace: JngoCreates
+          name: ${{ needs.fetch_meta.outputs.name }}
+          description: ${{ needs.fetch_meta.outputs.description }}
+          icon: 'Thunderstore/Icon.png'
+          version: ${{ needs.fetch_meta.outputs.version }}
+          file: 'artifacts/${{ needs.fetch_meta.outputs.name }}-Thunderstore.zip'
+          community: hollow-knight-silksong
+          categories: |
+            Mods

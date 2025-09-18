@@ -21,10 +21,10 @@ public class Plugin : BaseUnityPlugin {
         Log.Init(Logger);
 
         LoadSinnerTextures();
-        
+
         _harmony = new Harmony(MyPluginInfo.PLUGIN_GUID);
         #if DEBUG
-        // _harmony.PatchAll(typeof(DebugPatches));
+        _harmony.PatchAll(typeof(DebugPatches));
         #endif
 
         SceneManager.activeSceneChanged += OnSceneChange;
@@ -35,15 +35,11 @@ public class Plugin : BaseUnityPlugin {
         if (oldScene.name != "Menu_Title") {
             return;
         }
-        
-        // Remove all patches when returning to the main menu
-        if (newScene.name == "Menu_Title") {
-            _harmony.UnpatchSelf();
-        } else {
-            if (GameManager.GetSaveStatsFromData(GameManager.instance.GetSaveGameData(PlayerData.instance.profileID))
-                .IsAct3) {
-                _harmony.PatchAll(typeof(SinnerPatches));
-            }
+
+        _harmony.UnpatchSelf();
+        if (GameManager.GetSaveStatsFromData(GameManager.instance.GetSaveGameData(PlayerData.instance.profileID))
+            .IsAct3) {
+            _harmony.PatchAll(typeof(SinnerPatches));
         }
     }
 

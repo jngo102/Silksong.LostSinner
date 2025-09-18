@@ -3,7 +3,7 @@ using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
 
-namespace LostSinner;
+namespace LostSinner.Behaviours;
 
 internal class PinProjectiles : MonoBehaviour {
     private void Awake() {
@@ -14,14 +14,14 @@ internal class PinProjectiles : MonoBehaviour {
     /// <summary>
     /// The number of extra pins to create.
     /// </summary>
-    private const int AdditionalPins = 10;
+    private const int AdditionalPins = 32;
 
     /// <summary>
     /// Create more pins.
     /// </summary>
     private void CreateMorePins() {
         for (int i = 0; i < AdditionalPins; i++) {
-            var extraPin = Instantiate(transform.GetChild(0).gameObject, transform);
+            Instantiate(transform.GetChild(0).gameObject, transform);
         }
     }
 

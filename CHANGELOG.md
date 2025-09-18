@@ -1,5 +1,14 @@
 # Lost Sinner Changelog
 
+## [0.4.0] - 2025-09-17
+
+### Changed
+
+- Changed boss name for HP mods
+- Increase number of total pins so patterns are consistent
+- Made second phase pin delay slightly slower (0.38 seconds vs 0.33 seconds)
+- Minor project structure refactor
+
 ## [0.3.0] - 2025-09-15
 
 ### Changed

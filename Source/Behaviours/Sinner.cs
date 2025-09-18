@@ -6,7 +6,7 @@ using HutongGames.PlayMaker;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
 
-namespace LostSinner;
+namespace LostSinner.Behaviours;
 
 /// <summary>
 /// Modifies the behavior of the First Sinner boss.
@@ -21,7 +21,6 @@ internal class Sinner : MonoBehaviour {
     private Rigidbody2D _body = null!;
     private PlayMakerFSM _control = null!;
     private Transform _heroTransform = null!;
-    private List<GameObject> _trackedObjects = new List<GameObject>();
 
     private void Awake() {
         StartCoroutine(SetupBoss());
@@ -77,15 +76,16 @@ internal class Sinner : MonoBehaviour {
     /// Modify the damage behavior of the boss.
     /// </summary>
     private void ModifyDamage() {
+        var damageFlags = DamagePropertyFlags.Void;
         foreach (var damageHero in GetComponentsInChildren<DamageHero>(true)) {
-            var woundFsm = damageHero.gameObject.LocateMyFSM("hornet_multi_wounder");
-            if (woundFsm) {
-                woundFsm.Fsm.GetFsmBool("z3 Force Black Threaded").Value = true;
-                return;
+            var multiWounderFsm = damageHero.gameObject.LocateMyFSM("hornet_multi_wounder");
+            if (multiWounderFsm) {
+                multiWounderFsm.Fsm.GetFsmBool("z3 Force Black Threaded").Value = true;
+                continue;
             }
 
             damageHero.damageDealt = 2;
-            damageHero.damagePropertyFlags = DamagePropertyFlags.None | DamagePropertyFlags.Void;
+            damageHero.damagePropertyFlags = damageFlags;
         }
     }
 
@@ -245,7 +245,8 @@ internal class Sinner : MonoBehaviour {
     /// Transition from the boss's double slash attack to its charging slice attack.
     /// </summary>
     private void SlashToCharge() {
-        FsmState afterSlashState = null, sliceChargeAnticState = null;
+        FsmState? afterSlashState = null;
+        FsmState? sliceChargeAnticState = null;
         foreach (var state in _control.FsmStates) {
             if (state.Name == "After Slash") {
                 afterSlashState = state;
@@ -297,7 +298,7 @@ internal class Sinner : MonoBehaviour {
 
             var threadPullState = pinFsm.FsmStates.First(state => state.Name == "Thread Pull");
             if (threadPullState.Actions[3] is Wait wait) {
-                wait.time = 0.33f;
+                wait.time = 0.4f;
             }
         }
     }
@@ -348,7 +349,7 @@ internal class Sinner : MonoBehaviour {
                 AngleMax = 135,
                 AmountMin = 1,
                 AmountMax = 1,
-            }, transform, Vector3.up * 2, _trackedObjects);
+            }, transform, Vector3.up * 2);
             var audioPlayer = audioPlayerPrefab.Spawn(transform.position);
             var audioSource = audioPlayer.GetComponent<AudioSource>();
             audioSource.pitch = Random.Range(0.85f, 1.15f);
