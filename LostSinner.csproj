@@ -40,10 +40,6 @@
         <Binaries Include="$(TargetDir)/$(TargetName).pdb"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <ThunderstoreAssets Include="$(MSBuildProjectDirectory)/Thunderstore/*;CHANGELOG.md;README.md"/>
-    </ItemGroup>
-
     <Target Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU' And '$(SilksongFolder)' != ''" Name="CopyAndLaunchGame" AfterTargets="Build">
         <Copy SourceFiles="@(Binaries)" DestinationFolder="$(SilksongFolder)/BepInEx/plugins/$(TargetName)"/>
 
@@ -61,20 +57,5 @@
         <Copy SourceFiles="@(Binaries)" DestinationFolder="$(IntermediateOutputPath)/archive"/>
         <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/archive" DestinationFile="$(ExportFolder)/$(TargetName).zip" Overwrite="True"/>
 
-        <!-- Create Thunderstore package -->
-        <RemoveDir Directories="$(IntermediateOutputPath)/thunderstore"/>
-        <Copy SourceFiles="@(Binaries);@(ThunderstoreAssets)" DestinationFolder="$(IntermediateOutputPath)/thunderstore"/>
-        <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/thunderstore" DestinationFile="$(ExportFolder)/$(TargetName)-Thunderstore.zip" Overwrite="True"/>
-    </Target>
-
-    <Target Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'" Name="PackageModThunderstore" AfterTargets="Build">
-        <PropertyGroup>
-            <ExportFolder>bin/Publish</ExportFolder>
-        </PropertyGroup>
-
-        <RemoveDir Directories="$(IntermediateOutputPath)/archive"/>
-        <MakeDir Directories="$(ExportFolder)"/>
-        <Copy SourceFiles="@(Binaries);" DestinationFolder="$(IntermediateOutputPath)/archive"/>
-        <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/archive" DestinationFile="$(ExportFolder)/$(TargetName).zip" Overwrite="True"/>
     </Target>
 </Project>

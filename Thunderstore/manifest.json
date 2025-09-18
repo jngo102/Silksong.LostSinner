@@ -1,9 +1,0 @@
-{
-  "name": "LostSinner",
-  "description": "Mods the First Sinner boss from Hollow Knight: Silksong to be slightly more difficult.",
-  "website_url": "https://github.com/jngo102/Silksong.LostSinner",
-  "version_number": "0.4.0",
-  "dependencies": [
-    "BepInEx-BepInExPack_Silksong-5.4.2303"
-  ]
-}
