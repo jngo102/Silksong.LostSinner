@@ -2,6 +2,9 @@ using HarmonyLib;
 
 namespace LostSinner.Patches;
 
+/// <summary>
+/// Patches for debug use.
+/// </summary>
 internal static class DebugPatches {
     /// <summary>
     /// Force invincibility for debug purposes.

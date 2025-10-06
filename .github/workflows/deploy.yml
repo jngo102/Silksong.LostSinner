@@ -66,4 +66,4 @@ jobs:
           name: ${{ needs.fetch_meta.outputs.name }}
           body: ${{ needs.fetch_meta.outputs.changelog }} 
           tag: ${{ needs.fetch_meta.outputs.version }}
-          prerelease: true
+          prerelease: false

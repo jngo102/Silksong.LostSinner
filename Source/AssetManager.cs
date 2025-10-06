@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using HutongGames.PlayMaker.Actions;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -49,35 +50,65 @@ internal static class AssetManager {
 
                     var loadedAsset = assetLoadHandle.asset;
                     if (loadedAsset != null) {
-                        Type assetType = loadedAsset.GetType();
-                        string assetName = loadedAsset.name;
-                        if (Assets.ContainsKey(assetType)) {
-                            var existingAssetSubDict = Assets[assetType];
-                            if (existingAssetSubDict != null) {
-                                if (existingAssetSubDict.ContainsKey(assetName)) {
-                                    var existingAsset = existingAssetSubDict[assetName];
-                                    if (existingAsset != null) {
-                                        Log.Warn($"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
-                                    } else {
-                                        Log.Info(
-                                            $"Key \"{assetName}\" for sub-dictionary of type \"{assetType}\" exists, but its value is null; Replacing with new asset...");
-                                        Assets[assetType][assetName] = loadedAsset;
-                                    }
-                                } else {
-                                    Log.Debug($"Adding asset {assetName} of type {assetType}...");
-                                    Assets[assetType].Add(assetName, loadedAsset);
-                                }
-                            } else {
-                                Assets.Add(assetType, new Dictionary<string, Object>());
-                            }
-                        } else {
-                            Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = loadedAsset });
-                            Log.Debug(
-                                $"Added new sub-dictionary of type {assetType} with initial asset {assetName}.");
-                        }
+                        TryAdd(loadedAsset);
                     }
                 }
             }
+        }
+    }
+
+    private static void TryAdd<T>(T asset) where T : Object {
+        var assetName = asset.name;
+        if (Has(assetName)) {
+            Log.Warn($"Asset \"{asset.name}\" has already been loaded!");
+            return;
+        }
+        
+        var assetType = asset.GetType();
+        if (Assets.ContainsKey(assetType)) {
+            var existingAssetSubDict = Assets[assetType];
+            if (existingAssetSubDict != null) {
+                if (existingAssetSubDict.ContainsKey(assetName)) {
+                    var existingAsset = existingAssetSubDict[assetName];
+                    if (existingAsset != null) {
+                        Log.Warn($"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
+                    } else {
+                        Log.Info(
+                            $"Key \"{assetName}\" for sub-dictionary of type \"{assetType}\" exists, but its value is null; Replacing with new asset...");
+                        Assets[assetType][assetName] = asset;
+                    }
+                } else {
+                    Log.Debug($"Adding asset \"{assetName}\" of type \"{assetType}\".");
+                    Assets[assetType].Add(assetName, asset);
+                }
+            } else {
+                Log.Error($"Failed to get sub-dictionary of type \"{assetType}\"!");
+                Assets.Add(assetType, new Dictionary<string, Object>());
+            }
+        } else {
+            Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = asset });
+            Log.Debug(
+                $"Added new sub-dictionary of type \"{assetType}\" with initial asset \"{assetName}\".");
+        }
+    }
+
+    /// <summary>
+    /// Load textures embedded in the assembly.
+    /// </summary>
+    internal static void LoadTextures() {
+        var assembly = Assembly.GetExecutingAssembly();
+        foreach (string resourceName in assembly.GetManifestResourceNames()) {
+            using Stream? stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream == null) continue;
+
+            
+            var buffer = new byte[stream.Length];
+            stream.Read(buffer, 0, buffer.Length);
+            var atlasTex = new Texture2D(2, 2);
+            string texName = resourceName.Split('.')[^2];
+            atlasTex.name = texName;
+            atlasTex.LoadImage(buffer);
+            TryAdd(atlasTex);
         }
     }
 
@@ -89,7 +120,7 @@ internal static class AssetManager {
             if (AssetBundle.GetAllLoadedAssetBundles().Any(bundle => bundle.name == bundleName)) {
                 continue;
             }
-            
+
             string platformFolder = Application.platform switch {
                 RuntimePlatform.WindowsPlayer => "StandaloneWindows64",
                 RuntimePlatform.OSXPlayer => "StandaloneOSX",
@@ -103,8 +134,8 @@ internal static class AssetManager {
 
             AssetBundle bundle = bundleLoadRequest.assetBundle;
             _manuallyLoadedBundles.Add(bundle);
-            foreach (var assetPath in bundle.GetAllAssetNames()) {
-                foreach (var assetName in _assetNames) {
+            foreach (string assetPath in bundle.GetAllAssetNames()) {
+                foreach (string assetName in _assetNames) {
                     if (assetPath.Contains(assetName)) {
                         var assetLoadRequest = bundle.LoadAssetAsync(assetPath);
                         assetLoadRequest.completed += _ => {
@@ -146,27 +177,7 @@ internal static class AssetManager {
                                 }
                             }
 
-                            var assetType = loadedAsset.GetType();
-                            if (Assets.ContainsKey(assetType) && Assets[assetType] != null) {
-                                var assetEntry = Assets[assetType];
-                                if (assetEntry.ContainsKey(assetName)) {
-                                    if (!assetEntry[assetName]) {
-                                        Log.Info(
-                                            $"Asset \"{assetName}\" of type \"{assetType}\" already exists but is null, replacing it with the newly-loaded asset.");
-                                        assetEntry[assetName] = loadedAsset;
-                                    } else {
-                                        Log.Warn(
-                                            $"There is already an asset \"{assetName}\" of type \"{assetType}\"!");
-                                    }
-                                } else {
-                                    Log.Debug($"Adding asset {assetName} of type {assetType}");
-                                    assetEntry.Add(assetName, loadedAsset);
-                                }
-                            } else {
-                                Assets.Add(assetType, new Dictionary<string, Object> { [assetName] = loadedAsset });
-                                Log.Debug(
-                                    $"Added new sub-dictionary of type {assetType} with initial asset {assetName}");
-                            }
+                            TryAdd(loadedAsset);
                         };
                     }
                 }
@@ -209,6 +220,23 @@ internal static class AssetManager {
     }
 
     /// <summary>
+    /// Whether an asset with a specified name is already loaded.
+    /// </summary>
+    /// <param name="assetName">The name of the asset to check.</param>
+    /// <returns></returns>
+    private static bool Has(string assetName) {
+        foreach (var (_, subDict) in Assets) {
+            foreach (var (name, existingAsset) in subDict) {
+                if (assetName == name && existingAsset) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Fetch an asset.
     /// </summary>
     /// <param name="assetName">The name of the asset to fetch.</param>
@@ -226,11 +254,11 @@ internal static class AssetManager {
                     }
 
                     Log.Error($"Failed to get asset \"{assetName}\"; asset is null!");
-                    return null;;
+                    return null;
                 }
 
                 Log.Error($"Sub-dictionary for type \"{assetType}\" does not contain key \"{assetName}\"!");
-                return null;;
+                return null;
             }
 
             Log.Error($"Failed to get asset \"{assetName}\"; sub-dictionary of key \"{assetType}\" is null!");
