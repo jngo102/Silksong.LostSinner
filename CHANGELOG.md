@@ -1,5 +1,15 @@
 # Lost Sinner Changelog
 
+## [1.0.0] - 2025-10-06
+
+### Added
+
+- Make corpse voice also distorted
+
+### Changed
+
+- Unlock all crest slots in save file
+
 ## [0.4.1] - 2025-09-18
 
 ### Changed

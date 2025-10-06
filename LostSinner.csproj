@@ -20,7 +20,7 @@
         <!--These properties will control the generated PluginInfo. Version is also used by various parts of the build system.-->
         <BepInExPluginGuid>LostSinner</BepInExPluginGuid>
         <BepInExPluginName>LostSinner</BepInExPluginName>
-        <Version>0.4.1</Version>
+        <Version>1.0.0</Version>
     </PropertyGroup>
 
     <ItemGroup>
@@ -35,27 +35,27 @@
         <EmbeddedResource Include="Assets/*.png"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <Binaries Include="$(TargetPath)"/>
-        <Binaries Include="$(TargetDir)/$(TargetName).pdb"/>
-    </ItemGroup>
-
     <Target Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU' And '$(SilksongFolder)' != ''" Name="CopyAndLaunchGame" AfterTargets="Build">
-        <Copy SourceFiles="@(Binaries)" DestinationFolder="$(SilksongFolder)/BepInEx/plugins/$(TargetName)"/>
+        <Copy SourceFiles="$(TargetPath);$(TargetDir)/$(TargetName).pdb" DestinationFolder="$(SilksongFolder)/BepInEx/plugins/$(TargetName)"/>
 
-        <Exec Command="steam -applaunch 1030300"/>
+        <Exec Command='steam -applaunch 1030300 --doorstop-enabled true --doorstop-target-assembly "$(SilksongFolder)\BepInEx\core\BepInEx.Preloader.dll"'/>
     </Target>
 
     <Target Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'" Name="PackageMod" AfterTargets="Build">
+        <ItemGroup>
+            <PublishFiles Include="$(TargetPath)"/>
+            <PublishFiles Include="$(TargetDir)/$(TargetName).pdb"/>
+            <PublishFiles Include="README.md"/>
+        </ItemGroup>
+
         <PropertyGroup>
             <ExportFolder>bin/Publish</ExportFolder>
         </PropertyGroup>
 
-        <!-- Create Release package -->
-        <RemoveDir Directories="$(IntermediateOutputPath)/archive"/>
+        <RemoveDir Directories="$(OutputPath)/archive"/>
         <MakeDir Directories="$(ExportFolder)"/>
-        <Copy SourceFiles="@(Binaries)" DestinationFolder="$(IntermediateOutputPath)/archive"/>
-        <ZipDirectory SourceDirectory="$(IntermediateOutputPath)/archive" DestinationFile="$(ExportFolder)/$(TargetName).zip" Overwrite="True"/>
-
+        <Copy SourceFiles="@(PublishFiles)" DestinationFolder="$(OutputPath)/archive"/>
+        <Copy SourceFiles="README.md" DestinationFolder="$(OutputPath)/archive"/>
+        <ZipDirectory SourceDirectory="$(OutputPath)/archive" DestinationFile="$(ExportFolder)/$(TargetName).zip" Overwrite="True"/>
     </Target>
 </Project>

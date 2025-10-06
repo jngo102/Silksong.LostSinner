@@ -14,7 +14,7 @@ https://github.com/jngo102/Silksong.LostSinner/releases/latest
 ## Installation intructions
 
 ### Manual download
-1.  [Download and install BepInEx](https://docs.bepinex.dev/articles/user_guide/installation/index.html)
+1.  [Download and install BepInEx.](https://docs.bepinex.dev/articles/user_guide/installation/index.html)
 2.  Ensure that the game has run at least once so that a `plugins` folder is generated in the `BepInEx` folder besides the game executable.
 3.  Download the .zip file from one of the sources listed above.
 4.  Extract the .zip file to the generated `plugins` folder.

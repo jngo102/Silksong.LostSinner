@@ -55,10 +55,12 @@ internal class Sinner : MonoBehaviour {
     /// Distort the boss's voice to be like other void-corrupted enemies.
     /// </summary>
     private void ChangeBlackThreadVoice() {
-        var voiceAudio = transform.Find("Audio Loop Voice").GetComponent<AudioSource>();
-        var blackThreadMixerGroup =
-            voiceAudio.outputAudioMixerGroup.audioMixer.FindMatchingGroups("Actors VoiceBlackThread");
-        voiceAudio.outputAudioMixerGroup = blackThreadMixerGroup[0];
+        foreach (var voiceAudio in GetComponentsInChildren<AudioSource>(true)
+                     .Where(audio => audio.name == "Audio Loop Voice")) {
+            var blackThreadMixerGroup =
+                voiceAudio.outputAudioMixerGroup.audioMixer.FindMatchingGroups("Actors VoiceBlackThread");
+            voiceAudio.outputAudioMixerGroup = blackThreadMixerGroup[0];
+        }
     }
 
     /// <summary>
@@ -68,7 +70,7 @@ internal class Sinner : MonoBehaviour {
         var sprite = GetComponent<tk2dSprite>();
         var cln = sprite.Collection;
         for (int materialIndex = 0; materialIndex < cln.materials.Length; materialIndex++) {
-            cln.materials[materialIndex].mainTexture = AssetManager.Get<Texture2D>($"atlas{materialIndex}");            
+            cln.materials[materialIndex].mainTexture = AssetManager.Get<Texture2D>($"atlas{materialIndex}");
         }
     }
 
